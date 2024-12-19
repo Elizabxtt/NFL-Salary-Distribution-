@@ -1,0 +1,393 @@
+---
+title: "RSM384 Project"
+output:
+  pdf_document: default
+  html_document: default
+date: "2024-11-06"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(dplyr)
+```
+
+```{r}
+Team_Data <- team_stats_2003_2023
+
+Team_Data <- Team_Data %>%
+  filter(year >= 2020 & year <= 2023)
+```
+
+Renaming Rec Stats
+```{r}
+Team_Data <- Team_Data %>%
+  rename(rec_yds = pass_yds)
+
+Team_Data <- Team_Data %>%
+  rename(rec_td = pass_td)
+
+Team_Data <- Team_Data %>%
+  rename(rec_fd = pass_fd)
+
+Team_Data <- Team_Data %>%
+  rename(rec_cmp = pass_cmp)
+```
+
+Adding Variables for Receiver Stats
+```{r}
+Team_Data <- Team_Data %>%
+  mutate(log_rec_yds = log(rec_yds))
+
+Team_Data <- Team_Data %>%
+  mutate(yds_per_recep = rec_yds/rec_cmp)
+
+Team_Data <- Team_Data %>%
+  mutate(catch_pct = rec_cmp/pass_att)
+#nuances to this because pass_att includes balls that are thrown away and not the same as targets 
+```
+
+Adding Variables for RB stats
+```{r}
+Team_Data <- Team_Data %>%
+  mutate(rush_yds_per_att = rush_yds/rush_att)
+
+Team_Data <- Team_Data %>%
+  mutate(log_rush_yds = log(rush_yds))
+```
+
+Adding Win Percentage
+```{r}
+Team_Data <- Team_Data %>%
+  mutate(win_pct = wins/g)
+```
+
+```{r}
+defence_stats <- defence_stats %>%
+  mutate(log_rec_yds_agst = log(rec_yds_agst))
+
+defence_stats <- defence_stats %>%
+  mutate(log_rush_yds_agst = log(rush_yds_agst))
+```
+
+
+```{r}
+defence_stats_filt <- defence_stats %>% select(team, year, rec_yds_agst, rush_yds_agst)
+```
+
+```{r}
+Teams_Data <- merge(Team_Data, defence_stats_filt, by = c("team", "year"))
+```
+
+```{r}
+Wins.fit <- lm(win_pct ~ rec_yds_agst + rush_yds_agst + rush_yds + rec_yds, data = Teams_Data)
+
+summary(Wins.fit)
+```
+```{r}
+# Load required libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+```
+
+```{r}
+# Create dataframe with coefficient values from the regression
+coef_data <- data.frame(
+  metric = c("Receiving Yards", "Rushing Yards", 
+             "Receiving Yards Against", "Rushing Yards Against"),
+  estimate = c(2.078e-04, 1.985e-04, -8.530e-05, -1.914e-04),
+  std_error = c(1.980e-05, 3.119e-05, 2.492e-05, 3.519e-05),
+  category = c("Offense", "Offense", "Defense", "Defense")
+)
+```
+
+```{r}
+# Calculate confidence intervals
+coef_data <- coef_data %>%
+  mutate(
+    lower = estimate - (1.96 * std_error),
+    upper = estimate + (1.96 * std_error)
+  )
+```
+
+```{r}
+# Create the plot
+ggplot(coef_data, aes(x = estimate, y = reorder(metric, estimate))) +
+  # Add reference line at zero
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  # Add horizontal bars
+  geom_col(aes(fill = category), width = 0.7) +
+  # Add error bars
+  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.2) +
+  # Customize colors
+  scale_fill_manual(values = c("Offense" = "red", "Defense" = "blue")) +
+  # Customize labels
+  labs(
+    title = "Impact on Win Percentage by Types of Yards",
+    x = "Effect on Win Percentage",
+    y = NULL,
+    fill = "Category"
+  ) +
+  # Customize theme
+  theme_minimal() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "bottom",
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12),
+    plot.title = element_text(size = 14, face = "bold")
+  ) +
+  # Format x-axis to show percentages
+  scale_x_continuous(labels = scales::percent_format(scale = 100))
+```
+
+```{r}
+
+
+# Original coefficients
+coef(Wins.fit)  # Assuming Salary.fit is your model
+
+# Multiply by 100 to adjust for 100-yard effect
+new_coef <- coef(Wins.fit)
+new_coef["rush_yds"] <- new_coef["rush_yds"] * 500
+new_coef["rec_yds"] <- new_coef["rec_yds"] * 500
+new_coef["rush_yds_agst"] <- new_coef["rush_yds_agst"] * 500
+new_coef["rec_yds_agst"] <- new_coef["rec_yds_agst"] * 500
+
+# Display the updated coefficients
+new_coef
+```
+```{r}
+# Create dataframe with coefficient values from the regression
+coef_data <- data.frame(
+  metric = c("Receiving Yards", "Rushing Yards", 
+             "Receiving Yards Against", "Rushing Yards Against"),
+  estimate = c(0.10388788 , 0.09923888, -0.04265032, -0.09571896),
+  std_error = c(1.980e-05, 3.119e-05, 2.492e-05, 3.519e-05),
+  category = c("Offense", "Offense", "Defense", "Defense")
+)
+```
+
+```{r}
+# Calculate confidence intervals
+coef_data <- coef_data %>%
+  mutate(
+    lower = estimate - (1.96 * std_error),
+    upper = estimate + (1.96 * std_error)
+  )
+```
+
+```{r}
+# Create the plot
+ggplot(coef_data, aes(x = estimate, y = reorder(metric, estimate))) +
+  # Add reference line at zero
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  # Add horizontal bars
+  geom_col(aes(fill = category), width = 0.7) +
+  # Add error bars
+  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.2) +
+  # Customize colors
+  scale_fill_manual(values = c("Offense" = "red", "Defense" = "blue")) +
+  # Customize labels
+  labs(
+    title = "Impact on Win Percentage by Types of Yards",
+    x = "Effect on Win Percentage",
+    y = NULL,
+    fill = "Category"
+  ) +
+  # Customize theme
+  theme_minimal() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "bottom",
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12),
+    plot.title = element_text(size = 14, face = "bold")
+  ) +
+  # Format x-axis to show percentages
+  scale_x_continuous(labels = scales::percent_format(scale = 100))
+```
+
+```{r}
+Receiver_Data_Rookies <- merge(salary_stat_RECEIVER, paired_reciever_data_2019_2023, by = c("Player", "Year"))
+```
+
+```{r}
+Rec_Data <- Receiver_Data_Rookies %>% filter(Age > 22)
+```
+
+```{r}
+Rec_Data <- Rec_Data %>%
+  rename(rec_yds = YDS)
+
+Rec_Data <- Rec_Data %>%
+  rename(rush_yds = YDS.1)
+```
+
+
+
+```{r}
+Rec_Data <- Rec_Data %>%
+  rename(Cap.Number = "cap number")
+```
+
+```{r}
+Rec_Data$Cap.Number <- gsub(",", "", Rec_Data$Cap.Number)
+
+Rec_Data$Cap.Number <- gsub("\\$", "", Rec_Data$Cap.Number)
+
+Rec_Data$Cap.Number <- as.numeric(Rec_Data$Cap.Number)
+
+```
+
+```{r}
+Rec_Data <- Rec_Data %>%
+  rename(Over_20 = X20.)
+```
+
+```{r}
+Rec_Data <- Rec_Data %>%
+  rename(Games_played = G)
+```
+
+```{r}
+Rec_Data <- Rec_Data %>%
+  rename(Yds.Rec = Y.R)
+```
+
+```{r}
+Rec_Data <- Rec_Data %>%
+  mutate(Rec_pct = REC/TGT)
+```
+
+```{r}
+summary(Rec_Data)
+```
+
+```{r}
+head(Rec_Data)
+```
+```{r}
+
+model <- lm(Cap.Number ~ rec_yds + rush_yds + Age + Games_played + Over_20 + factor(Year) + Yds.Rec + Rec_pct, data = Rec_Data)
+summary(model)
+```
+
+
+```{r}
+RB_Data <- final_merged_data_RNB
+
+RB_Data <- RB_Data %>% filter(age > 22)
+```
+
+```{r}
+RB_Data <- RB_Data %>%
+  rename(rush_yds = YDS)
+
+RB_Data <- RB_Data %>%
+  rename(rec_yds = YDS.1)
+```
+
+```{r}
+RB_Data <- RB_Data %>%
+  rename(Cap.Number = "cap number")
+```
+
+```{r}
+RB_Data$Cap.Number <- gsub(",", "", RB_Data$Cap.Number)
+
+RB_Data$Cap.Number <- gsub("\\$", "", RB_Data$Cap.Number)
+
+RB_Data$Cap.Number <- as.numeric(RB_Data$Cap.Number)
+
+```
+
+```{r}
+RB_Data <- RB_Data %>%
+  rename(Games_played = G)
+
+RB_Data <- RB_Data %>%
+  rename(Yds.Att = Y.A)
+
+RB_Data <- RB_Data %>%
+  rename(Over_20 = X20.)
+```
+
+```{r}
+summary(RB_Data)
+```
+
+```{r}
+
+model <- lm(Cap.Number ~ rush_yds + rec_yds + Over_20 + Yds.Att + age + Games_played + factor(year), data = RB_Data)
+summary(model)
+```
+
+```{r}
+# Coefficients from the regression models
+receiving_coeff <- 9024   # Value per receiving yard
+rushing_coeff <- 5551.1   # Value per rushing yard
+
+# Create a data frame for the bar graph
+impact_df <- data.frame(
+  Yard_Type = c("Receiving Yards", "Rushing Yards"),
+  Salary_Impact = c(receiving_coeff, rushing_coeff)
+)
+
+# Create the bar plot
+library(ggplot2)
+ggplot(impact_df, aes(x = Yard_Type, y = Salary_Impact, fill = Yard_Type)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  labs(
+    title = "Salary Impact Per Yard: Receiving vs. Rushing",
+    x = "Yard Type",
+    y = "Salary Impact ($)"
+  ) +
+  scale_fill_manual(values = c("blue", "red")) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  scale_y_continuous(labels = scales::comma) # Format Y-axis as currency
+
+```
+
+
+
+
+```{r}
+# Load the required packages
+library(ggplot2)
+library(scales)
+
+# Given coefficients (replace these with actual values)
+salary_coef_rec <- 9024    # Coefficient for rec yards in salary regression
+salary_coef_rush <- 5551.1 # Coefficient for rush yards in salary regression
+win_coef_rec <- 0.0002078  # Coefficient for rec yards in win regression
+win_coef_rush <- 0.0001985 # Coefficient for rush yards in win regression
+
+# Calculate salary-to-win contribution ratios
+ratio_rec <- salary_coef_rec / win_coef_rec
+ratio_rush <- salary_coef_rush / win_coef_rush
+
+# Data for plotting
+ratio_data <- data.frame(
+  Yard_Type = c("Receiving Yards", "Rushing Yards"),
+  Salary_to_Win_Ratio = c(ratio_rec, ratio_rush)
+)
+
+# Plot with customized y-axis labels
+ggplot(ratio_data, aes(x = Yard_Type, y = Salary_to_Win_Ratio, fill = Yard_Type)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Salary-to-Win Contribution Ratios for Yard Types",
+       x = "Yard Type",
+       y = "Salary per Yard / Win Contribution per Yard") + 
+  scale_fill_manual(values = c("blue", "red")) +
+  theme(legend.position = "none") +
+  scale_y_continuous(labels = comma) # This will add commas to the y-axis
+
+```
